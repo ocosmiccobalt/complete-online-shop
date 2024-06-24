@@ -1,12 +1,23 @@
 const User = require('../models/user.model');
 const authUtil = require('../util/authentication');
 const validation = require('../util/validation');
+const sessionFlash = require('../util/session-flash');
 
 function getSignup(req, res) {
   res.render('customer/auth/signup');
 }
 
 async function signup(req, res, next) {
+  const enteredData = {
+    email: req.body.email,
+    confirmEmail: req.body['confirm-email'],
+    password: req.body.password,
+    fullname: req.body.fullname,
+    street: req.body.street,
+    postal: req.body.postal,
+    city: req.body.city,
+  };
+
   if (
     !validation.userDetailsAreValid(
       req.body.email,
@@ -15,9 +26,21 @@ async function signup(req, res, next) {
       req.body.street,
       req.body.postal,
       req.body.city
-    ) || !validation.emailIsConfirmed(req.body.email, req.body['confirm-email'])
+    ) ||
+    !validation.emailIsConfirmed(req.body.email, req.body['confirm-email'])
   ) {
-    res.redirect('/signup');
+    sessionFlash.flashDataToSession(
+      req,
+      {
+        errorMessage:
+          'Please check your input. Password must be at least 6 characters long, postal code must be 6 characters long',
+        ...enteredData
+      },
+      function () {
+        res.redirect('/signup');
+      }
+    );
+
     return;
   }
 
@@ -34,7 +57,17 @@ async function signup(req, res, next) {
     const existsAlready = await user.existsAlready();
 
     if (existsAlready) {
-      res.redirect('/signup');
+      sessionFlash.flashDataToSession(
+        req,
+        {
+          errorMessage: 'User exists already! Try logging in instead!',
+          ...enteredData,
+        },
+        function () {
+          res.redirect('/signup');
+        }
+      );
+
       return;
     }
 
@@ -62,15 +95,34 @@ async function login(req, res, next) {
     return;
   }
 
+  const sessionErrorData = {
+    errorMessage:
+      'Invalid credentials - please double-check your email and password!',
+    email: user.email,
+    password: user.password,
+  };
+
   if (!existingUser) {
-    res.redirect('/login');
+    sessionFlash.flashDataToSession(
+      req,
+      sessionErrorData,
+      function () {
+        res.redirect('/login');
+      }
+    );
     return;
   }
 
   const passwordIsCorrect = await user.hasMatchingPassword(existingUser.password);
 
   if (!passwordIsCorrect) {
-    res.redirect('/login');
+    sessionFlash.flashDataToSession(
+      req,
+      sessionErrorData,
+      function () {
+        res.redirect('/login');
+      }
+    );
     return;
   }
 
