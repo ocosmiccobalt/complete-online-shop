@@ -1,4 +1,4 @@
-const bcryptjs = require('bcryptjs');
+const bcrypt = require('bcryptjs');
 
 const db = require('../data/database');
 
@@ -15,7 +15,7 @@ class User {
   }
 
   async signup() {
-    const hashedPassword = await bcryptjs.hash(this.password, 12);
+    const hashedPassword = await bcrypt.hash(this.password, 12);
 
     await db.getDb().collection('users').insertOne({
       email: this.email,
@@ -23,6 +23,17 @@ class User {
       name: this.name,
       address: this.address
     });
+  }
+
+  getUserWithSameEmail() {
+    return db
+      .getDb()
+      .collection('users')
+      .findOne({ email: this.email });
+  }
+
+  hasMatchingPassword(hashedPassword) {
+    return bcrypt.compare(this.password, hashedPassword);
   }
 }
 
